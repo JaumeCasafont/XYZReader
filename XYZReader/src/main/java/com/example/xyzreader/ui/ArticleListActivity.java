@@ -8,6 +8,7 @@ import android.content.IntentFilter;
 import android.content.Loader;
 import android.database.Cursor;
 import android.os.Bundle;
+import android.os.Parcelable;
 import android.support.v4.widget.SwipeRefreshLayout;
 import android.support.v7.app.AppCompatActivity;
 import android.support.v7.widget.RecyclerView;
@@ -37,12 +38,16 @@ import java.util.GregorianCalendar;
  * activity presents a grid of items as cards.
  */
 public class ArticleListActivity extends AppCompatActivity implements
-        LoaderManager.LoaderCallbacks<Cursor> {
+        LoaderManager.LoaderCallbacks<Cursor>, SwipeRefreshLayout.OnRefreshListener {
 
     private static final String TAG = ArticleListActivity.class.toString();
+    private static final String LIST_STATE = "list_state";
+
     private Toolbar mToolbar;
     private SwipeRefreshLayout mSwipeRefreshLayout;
     private RecyclerView mRecyclerView;
+
+    private Parcelable listState;
 
     private SimpleDateFormat dateFormat = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss.sss");
     // Use default locale format
@@ -59,12 +64,19 @@ public class ArticleListActivity extends AppCompatActivity implements
 
         mSwipeRefreshLayout = findViewById(R.id.swipe_refresh_layout);
 
+        mSwipeRefreshLayout.setOnRefreshListener(this);
+
         mRecyclerView = findViewById(R.id.recycler_view);
         getLoaderManager().initLoader(0, null, this);
 
         if (savedInstanceState == null) {
             refresh();
         }
+    }
+
+    @Override
+    public void onRefresh() {
+        refresh();
     }
 
     private void refresh() {
@@ -82,6 +94,18 @@ public class ArticleListActivity extends AppCompatActivity implements
     protected void onStop() {
         super.onStop();
         unregisterReceiver(mRefreshingReceiver);
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        outState.putParcelable(LIST_STATE, mRecyclerView.getLayoutManager().onSaveInstanceState());
+        super.onSaveInstanceState(outState);
+    }
+
+    @Override
+    protected void onRestoreInstanceState(Bundle savedInstanceState) {
+        super.onRestoreInstanceState(savedInstanceState);
+        listState = savedInstanceState.getParcelable(LIST_STATE);
     }
 
     private boolean mIsRefreshing = false;
@@ -114,6 +138,10 @@ public class ArticleListActivity extends AppCompatActivity implements
         StaggeredGridLayoutManager sglm =
                 new StaggeredGridLayoutManager(columnCount, StaggeredGridLayoutManager.VERTICAL);
         mRecyclerView.setLayoutManager(sglm);
+
+        if (listState != null) {
+            mRecyclerView.getLayoutManager().onRestoreInstanceState(listState);
+        }
     }
 
     @Override
